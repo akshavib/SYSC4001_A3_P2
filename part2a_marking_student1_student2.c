@@ -15,11 +15,11 @@
 #include <sys/stat.h>
 
 typedef struct{
-    //char student_exam[];
-    //char rubric;
+    char    rubric[5][256]; // 5 lines in the rubric, each line max 256 chars
+    char    student_id[32]; // student number 
 } shared_data;
 
-void open_file(char* name, char* content){
+void load_exam_file(char* name, char* content){
     FILE* file = fopen(name, "r"); // reading file
     if (file == NULL){
         perror("fopen fail");
@@ -38,11 +38,26 @@ void open_file(char* name, char* content){
     }
 }
 
+void load_rubric_file(char* name, char rubric[5][256]){
+    FILE* file = fopen(name, "r"); 
+    if (file == NULL){
+        perror("fopen fail");
+        exit(1);
+    }
+     for (int i = 0; i < 5; i++) { // read 5 rubric lines
+        fgets(rubric[i], 256, file);
+     }
+     fclose(file);
+}
+
 int main(){
     int shmid = shmget(IPC_PRIVATE, sizeof(shared_data), IPC_CREAT | 0666);
     if (shmid < 0){
         perror("shmget fail");
         exit(1);
+    }
+    else{
+        //strcpy(shared_data->student_id, "student1");
     }
 
 }
