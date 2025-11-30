@@ -19,7 +19,7 @@ typedef struct{
     char    student_id[32]; // student number 
 } shared_data;
 
-void load_exam_file(char* name, char* content){
+void load_exam_file(char* name, char* content){ // method for loading the exam files, reading them
     FILE* file = fopen(name, "r"); // reading file
     if (file == NULL){
         perror("fopen fail");
@@ -38,7 +38,7 @@ void load_exam_file(char* name, char* content){
     }
 }
 
-void load_rubric_file(char* name, char rubric[5][256]){
+void load_rubric_file(char* name, char rubric[5][256]){ // method for loading the single rubric file, reading it
     FILE* file = fopen(name, "r"); 
     if (file == NULL){
         perror("fopen fail");
@@ -50,6 +50,19 @@ void load_rubric_file(char* name, char rubric[5][256]){
      fclose(file);
 }
 
+void write_rubric(char* name, char rubric[5][256]){ // method for writing the single rubric file, writing in it
+    FILE* file = fopen(name, "w"); 
+    if (file == NULL){
+        perror("fopen fail");
+        exit(1);
+    }
+     for (int i = 0; i < 5; i++) { // write 5 rubric lines
+        fputs(rubric[i], file);
+        fputs("\n", file); // new line because of formatting
+     }
+     fclose(file);
+}
+
 int main(){
     int shmid = shmget(IPC_PRIVATE, sizeof(shared_data), IPC_CREAT | 0666);
     if (shmid < 0){
@@ -57,7 +70,24 @@ int main(){
         exit(1);
     }
     else{
-        //strcpy(shared_data->student_id, "student1");
+        shared_data* shared = (shared_data*)shmat(shmid, NULL, 0);
+        if (shared == (shared_data*)-1) {
+            perror("shmat failed");
+            exit(1);
+        }
+        load_rubric_file("rubric.txt", shared->rubric); // load rubric file into shared memory
+        load_exam_file("student1.txt", shared->student_id); // load student1 exam file into shared memory
+
+        printf("\nTTTESESSSTINGGGG\n");
+        printf("studen id : %s\n", shared->student_id);
+        
+        printf("rubric in memory:\n");
+        for(int i=0; i<5; i++) {
+            printf("  Line %d: %s", i+1, shared->rubric[i]);
+        }
+        shmdt(shared);
+        shmctl(shmid, IPC_RMID, NULL);
+        printf("Shared memory cleaned up.\n");
     }
 
 }
