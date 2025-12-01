@@ -13,6 +13,7 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <sys/stat.h>
+#include <time.h>
 
 typedef struct{
     char    rubric[5][256]; // 5 lines in the rubric, each line max 256 chars
@@ -74,7 +75,8 @@ void ta_delay(double min, double max){ // handling the random delay for TA marki
 }
 
 int main(int argc, char* argv[]){
-    int ta_count = argv[1]; // number of TAs
+    int ta_count = atoi(argv[1]); // number of TAs
+
     if (ta_count < 2) {  
         printf("ERROR: need at least 2 TAs\n");
         return 1;
@@ -92,15 +94,7 @@ int main(int argc, char* argv[]){
             exit(1);
         }
         load_rubric_file("rubric.txt", shared->rubric); // load rubric file into shared memory
-        load_exam_file("student1.txt", shared->student_id); // load student1 exam file into shared memory
-
-        /**printf("\nTTTESESSSTINGGGG\n"); // test 
-        printf("studen id : %s\n", shared->student_id); //test
-        
-        printf("rubric in memory:\n"); // test
-        for(int i=0; i<5; i++) { //test
-            printf("  Line %d: %s", i+1, shared->rubric[i]); //test
-        } //test**/
+        load_exam_file("exam1.txt", shared->student_id); // load exam1 file into shared memory
 
         for(int i=0; i<ta_count; i++){
             pid_t pid = fork();
@@ -110,8 +104,49 @@ int main(int argc, char* argv[]){
             }
             else if (pid == 0){
                 srand(time(NULL) + getpid()); // seed random number generator
-                print("\nTA %d marking student %s\n", i, getpid());
+                printf("\n(TA %d) : Marking student %s\n", i, getpid());
 
+                while(!shared->completed){
+                    if (strcmp(shared->student_id, "9999") == 0) {
+                        shared->completed = 1;
+                        printf("(TA %d) : Found student 9999. Setting all_done=1\n", i);
+                        break;
+                    }
+
+                    printf("(TA %d) : Reviewing rubric for student %s\n", i, shared->student_id);
+
+                    for (int q = 0; q < 5; q++) {
+                        printf("(TA %d) : Reviewing line %d of rubric: %s", i, q+1, shared->rubric[q]);
+                        ta_delay(0.5, 1.0); // simulate the delay for reviewing rubric
+
+                        if((rand() % 5) == 0){ // 20% chance that the rubric needs modifying
+                            printf("(TA %d) : Identified a mistake in rubric line %d. Modifying...\n", i, q + 1);
+
+                            char* comma = strchr(shared->rubric[q], ','); // looking where the comma is, and then changing the vakue after
+                            if (comma != NULL && *(comma + 2) != '\0') {
+                                char* rubric_char = comma + 2; // increment to point to the value
+                                (*rubric_char)++; // go to character value
+                                printf("(TA %d) : Modified rubric line %d to: %s", i, q + 1, shared->rubric[q]);
+                                write_rubric("rubric.txt", shared->rubric); // write back to rubric file, save
+                            }
+
+                        }
+                    }
+
+                    if(shared->qs_done < 5){ // check if there are questions left to mark
+                        printf("(TA %d) : Marking question %d for student %s\n", i, shared->qs_done + 1, shared->student_id);
+                        ta_delay(1.0, 2.0); // simulate delay for marking question
+                        int current_question = shared->qs_done + 1;
+                        shared->qs_done++; // increment questions done
+                        printf("[TA %d] Finished marking question %d for Student %s\n", i, current_question, shared->student_id);
+                    }
+                    else{
+                        shared->curr_exam++;
+                        shared->qs_done = 0;
+                        
+                    }
+
+                }
             }
         }
 
