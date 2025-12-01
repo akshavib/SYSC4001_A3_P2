@@ -164,6 +164,10 @@
                          printf("[REVIEW] (TA %d) : Line %d , No changes made.\n", i, q + 1);
                      }
                  }
+                 if (shared->completed || strncmp(shared->student_id, "9999", 4) == 0) {
+                    shared->completed = 1; // ensure flag is set
+                    break; // break the while loop
+                }
  
                  // mark qs or load next exam
                  if(shared->qs_done < 5){ // check if there are questions left to mark

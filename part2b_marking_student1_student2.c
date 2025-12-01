@@ -1,5 +1,5 @@
 /**
- * @file part2a_marking_student1_student2.cpp
+ * @file part2b_marking_student1_student2.c
  * @author akshavi baskaran
  * @author liam addie
  * */
@@ -26,11 +26,14 @@
      int     completed; // flag for marking done or not
  } shared_data;
 
- union semaphore {
-    int value;
+ // the semaphore is only used for linux systems, as mac os have semaphores built in
+ #ifdef __linux__
+ union semun {
+    int val;
     struct semid_ds *list;
     unsigned short *array;
  };
+ #endif
  
  void load_exam_file(const char* name, char* content, size_t max_len){ // method for loading the exam files, reading them
      FILE* file = fopen(name, "r"); // reading file
@@ -90,7 +93,7 @@
      usleep((useconds_t)(sleep * 1000000)); // convert to microseconds
  }
  
- void wait(int semid){ // the P operation
+ void sem_wait(int semid){ // the P operation
     struct sembuf sb;
     sb.sem_num = 0;
     sb.sem_op = -1; // wait operation
@@ -101,7 +104,7 @@
     }
  }
 
- void signal(int semid){  // the V operation
+ void sem_signal(int semid){  // the V operation
     struct sembuf sb;
     sb.sem_num = 0;
     sb.sem_op = 1; // signal operation
@@ -144,8 +147,8 @@
         exit(1);
     }
 
-     union semaphore arg; // prepare to initialize semaphore
-     arg.value = 1; // mutex initial vlaue, it is set to be unlocked
+     union semun arg; // prepare to initialize semaphore
+     arg.val = 1; // mutex initial vlaue, it is set to be unlocked
      if (semctl(semid, 0, SETVAL, arg) == -1) {
         perror("semctl init failed");
         exit(1);
@@ -183,14 +186,16 @@
                      break;
                  }
  
+                 // sem_wait(semid); // Optional: Lock while reading for cleaner output
                  printf("[REVIEW] (TA %d) : Reviewing rubric for student %s\n", i, shared->student_id);
- 
+                 // sem_signal(semid);
+
                  // review rubric (may modify it) 
                  for (int q = 0; q < 5; q++) {
                      ta_delay(0.5, 1.0); // simulate the delay for reviewing rubric
  
                      if((rand() % 10) == 0){ // 10% chance that the rubric needs modifying
-                         wait(semid); // locking the mutex, so rubric can be modified
+                         sem_wait(semid); // locking the mutex, so rubric can be modified
                          printf("[REVIEW] (TA %d) : Identified a mistake in rubric line %d. Modifying...\n", i, q + 1);
  
                          // find a comma then increment character after it
@@ -201,31 +206,34 @@
                              printf("[REVIEW] (TA %d) : Modified rubric line %d to: %s\n", i, q + 1, shared->rubric[q]);
                              write_rubric("rubric.txt", shared->rubric); // write back to rubric file, save
                          }
-                         signal(semid); // unlocking the mutex after modification
-                     } else {
-                         // logging update: explicitly state no changes were made
-                         printf("[REVIEW] (TA %d) : Line %d , No changes made.\n", i, q + 1);
-                     }
+                         sem_signal(semid); // unlocking the mutex after modification
+                     } 
                  }
 
-                 wait(semid); // locking the mutex before marking
+                 sem_wait(semid); // locking the mutex before marking
+
+                 if (shared->completed || strncmp(shared->student_id, "9999", 4) == 0) {
+                    shared->completed = 1; // ensure flag is set
+                    sem_signal(semid);     // unlock
+                    break; // break the while loop
+                }
 
                  // mark qs or load next exam
                  if(shared->qs_done < 5){ // check if there are questions left to mark
                      int current_question = shared->qs_done + 1;
+                     
+                     // With semaphores, we claim the question immediately inside the lock
+                     shared->qs_done++;
+
+                     sem_signal(semid); // unlocking the mutex before delay
                      
                      // logging update: print before entering critical section (marking)
                      printf("[MARK] (TA %d) : Attempting to mark question %d for student %s\n", i, current_question, shared->student_id);
                      
                      ta_delay(1.0, 2.0); // simulate delay for marking question
                      
-                     // logging update: check if race condition occurred during delay
-                     if (shared->qs_done >= 5) {
-                         printf("[MARK] (TA %d) : Question %d was already marked by another TA while I was thinking.\n", i, current_question);
-                     } else {
-                         shared->qs_done++;
-                         printf("[MARK] (TA %d) : Successfully finished marking question %d for Student %s\n", i, current_question, shared->student_id);
-                     }
+                     // We removed the race condition check because semaphores prevent it
+                     printf("[MARK] (TA %d) : Successfully finished marking question %d for Student %s\n", i, current_question, shared->student_id);
                  }
                  else{
                      // next exam loading
@@ -239,6 +247,7 @@
                          // after exam20, stop trying to load more files
                          strcpy(shared->student_id, "9999");
                          printf("[LOAD] (TA %d) : No more exam files. Setting student_id to 9999\n", i);
+                         sem_signal(semid); // unlocking the mutex before continue
                          continue;
                      }
                      printf("[LOAD] (TA %d) : All questions marked for previous student. Loading: %s\n", i, next_file);
@@ -247,7 +256,7 @@
                      if (strcmp(shared->student_id, "9999") == 0) {
                          printf("[LOAD] (TA %d) : No more exams to mark!\n", i);
                      }
-                     signal(semid); // unlocking the mutex after marking/loading
+                     sem_signal(semid); // unlocking the mutex after marking/loading
                  }
              } // end while
  
@@ -267,7 +276,7 @@
      // cleaning up
      shmdt(shared);
      shmctl(shmid, IPC_RMID, NULL);
-     semctl(semid, 0, IPC_RMID);
+     semctl(semid, 0, IPC_RMID); // clean up semaphore
      printf("\nShared memory cleaned up.\n");
  
      return 0;
