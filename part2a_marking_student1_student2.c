@@ -180,7 +180,7 @@
                      
                      // logging update: check if race condition occurred during delay
                      if (shared->qs_done >= 5) {
-                         printf("[MARK] (TA %d) : Question %d was already marked by another TA while I was thinking.\n", i, current_question);
+                         printf("[MARK] (TA %d) : Question %d was already marked by another TA.\n", i, current_question);
                      } else {
                          shared->qs_done++;
                          printf("[MARK] (TA %d) : Successfully finished marking question %d for Student %s\n", i, current_question, shared->student_id);
