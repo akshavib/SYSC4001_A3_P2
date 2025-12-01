@@ -25,6 +25,12 @@
      int     qs_done; // number of questions done
      int     completed; // flag for marking done or not
  } shared_data;
+
+ union semun {
+    int value;
+    struct semid_ds *list;
+    unsigned short *array;
+ };
  
  void load_exam_file(const char* name, char* content, size_t max_len){ // method for loading the exam files, reading them
      FILE* file = fopen(name, "r"); // reading file
@@ -84,6 +90,28 @@
      usleep((useconds_t)(sleep * 1000000)); // convert to microseconds
  }
  
+ void wait(int semid){
+    struct sembuf sb;
+    sb.sem_num = 0;
+    sb.sem_op = -1; // wait operation
+    sb.sem_flg = 0; 
+    if (semop(semid, &sb, 1) == -1) {
+        perror("semaphore wait failed");
+        exit(1);
+    }
+ }
+
+ void signal(int semid){ 
+    struct sembuf sb;
+    sb.sem_num = 0;
+    sb.sem_op = 1; // signal operation
+    sb.sem_flg = 0; 
+    if (semop(semid, &sb, 1) == -1) {
+        perror("semaphore signal failed");
+        exit(1);
+    }   
+ }
+
  int main(int argc, char* argv[]){
      if (argc < 2) {
          printf("Usage: %s <num_of_TAs>\n", argv[0]);
@@ -109,6 +137,8 @@
          shmctl(shmid, IPC_RMID, NULL);
          exit(1);
      }
+
+     union semun arg;
  
      // initialize shared memory
      load_rubric_file("rubric.txt", shared->rubric); // load rubric file into shared memory
