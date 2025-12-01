@@ -17,6 +17,9 @@
 typedef struct{
     char    rubric[5][256]; // 5 lines in the rubric, each line max 256 chars
     char    student_id[32]; // student number 
+    int     curr_exam; // index of the current exam being marked
+    int     qs_done; // number of questions done
+    int     completed; // flag for marking done or not
 } shared_data;
 
 void load_exam_file(char* name, char* content){ // method for loading the exam files, reading them
@@ -63,7 +66,20 @@ void write_rubric(char* name, char rubric[5][256]){ // method for writing the si
      fclose(file);
 }
 
-int main(){
+void ta_delay(double min, double max){ // handling the random delay for TA marking
+    double range = max - min;
+    double delay = (double) rand() / (double) RAND_MAX;
+    double sleep = min + delay * range;
+    usleep((useconds_t)(sleep * 1000000)); // convert to microseconds
+}
+
+int main(int argc, char* argv[]){
+    int ta_count = argv[1]; // number of TAs
+    if (ta_count < 2) {  
+        printf("ERROR: need at least 2 TAs\n");
+        return 1;
+    }
+
     int shmid = shmget(IPC_PRIVATE, sizeof(shared_data), IPC_CREAT | 0666);
     if (shmid < 0){
         perror("shmget fail");
@@ -78,16 +94,29 @@ int main(){
         load_rubric_file("rubric.txt", shared->rubric); // load rubric file into shared memory
         load_exam_file("student1.txt", shared->student_id); // load student1 exam file into shared memory
 
-        printf("\nTTTESESSSTINGGGG\n");
-        printf("studen id : %s\n", shared->student_id);
+        /**printf("\nTTTESESSSTINGGGG\n"); // test 
+        printf("studen id : %s\n", shared->student_id); //test
         
-        printf("rubric in memory:\n");
-        for(int i=0; i<5; i++) {
-            printf("  Line %d: %s", i+1, shared->rubric[i]);
+        printf("rubric in memory:\n"); // test
+        for(int i=0; i<5; i++) { //test
+            printf("  Line %d: %s", i+1, shared->rubric[i]); //test
+        } //test**/
+
+        for(int i=0; i<ta_count; i++){
+            pid_t pid = fork();
+            if (pid < 0){
+                perror("fork fail");
+                exit(1);
+            }
+            else if (pid == 0){
+                srand(time(NULL) + getpid()); // seed random number generator
+                print("\nTA %d marking student %s\n", i, getpid());
+
+            }
         }
+
         shmdt(shared);
         shmctl(shmid, IPC_RMID, NULL);
-        printf("Shared memory cleaned up.\n");
+        printf("\nShared memory cleaned up.\n");
     }
-
 }
