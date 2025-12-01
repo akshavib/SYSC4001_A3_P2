@@ -2,7 +2,6 @@
 
 **Student 1:** Akshavi Baskaran (101315124)  
 **Student 2:** Liam Addie (101302106)  
-**Course:** SYSC 4001 - Operating Systems  
 
 ---
 
