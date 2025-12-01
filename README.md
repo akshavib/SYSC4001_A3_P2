@@ -1,43 +1,54 @@
 # SYSC4001_A3_P2
 
-# Assignment 3 Part 2 - Concurrent Marking System
+**Concurrent Marking System**  
+**Students:** Akshavi Baskaran (101315124), Liam Addie (101302106)
 
-**Student 1:** Akshavi Baskaran (101315124)  
-**Student 2:** Liam Addie (101302106)  
-**Course:** SYSC 4001 - Operating Systems  
+## Overview
+This project simulates multiple TA processes marking exams concurrently.  
+- **Part 2A:** Shared Memory only → race conditions expected.  
+- **Part 2B:** Shared Memory + Semaphores → synchronized, correct behavior.
 
----
+## Files Needed
+- `part2a_marking_101302106_101315124.c`  
+- `part2b_marking_101302106_101315124.c`  
+- `rubric.txt` (5 lines of rubric text)  
+- `exam01.txt` … `exam19.txt` (student IDs)  
+- `exam20.txt` (contains **9999** to end simulation)
 
-## 1. Project Overview
-This project simulates a concurrent exam marking system where multiple Teaching Assistant (TA) processes access shared resources (a rubric and a pile of exams).
-
-* **Part 2a:** Implements the simulation using Shared Memory but **without** synchronization or semaphores. Race conditions are expected.
-* **Part 2b:** Adds System V Semaphores to synchronize access, satisfying the requirements of the Critical Section Solution.
-
----
-
-## 2. File List
-The following files should be present in your directory before running:
-
-**Source Code:**
-* `part2a_marking_101302106_101315124.c` (Unsynchronized)
-* `part2b_marking_101302106_101315124.c` (Synchronized)
-
-**Input Files (Required):**
-* `rubric.txt`: Contains 5 lines of rubric text (e.g., "1, A").
-* `exam01.txt` to `exam19.txt`: Text files containing 4-digit student IDs.
-* `exam20.txt`: **Must** contain the terminator ID "9999" to stop the simulation.
-
----
-
-## 3. Compilation Instructions
-Use `gcc` to compile the programs. No special flags are required beyond standard linking.
-
-**Compile Part 2a:**
+## Compile
 ```bash
 gcc part2a_marking_101302106_101315124.c -o part2a
-
-**Compile Part 2b:**
-```bash
 gcc part2b_marking_101302106_101315124.c -o part2b
+
+gcc part2b_marking_101302106_101315124.c -o part2b
+
+Run
+
+Both programs take one argument: number of TAs.
+
+./part2a <num_TAs>
+./part2b <num_TAs>
+
+Test Cases
+# 2 TAs
+./part2a 2
+./part2b 2
+
+# 3 TAs
+./part2a 3
+./part2b 3
+
+# 4 TAs
+./part2a 4
+./part2b 4
+
+# 5 TAs (stress)
+./part2a 5
+./part2b 5
+
+Expected Behavior
+
+Part 2A: interleaving output, duplicated marking → race conditions.
+
+Part 2B: ordered marking, no conflicts, clean shutdown message.
 
